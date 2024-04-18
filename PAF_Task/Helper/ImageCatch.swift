@@ -30,6 +30,12 @@ class ImageCache {
     func save(image: UIImage, forKey key: String) {
         memoryCache.setObject(image, forKey: key as NSString)
         
+        // Get the URL for the disk cache directory
+        guard let diskCacheDirectory = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first else {
+            print("Error: Unable to access disk cache directory")
+            return
+        }
+        
         let fileURL = diskCacheDirectory.appendingPathComponent(key)
         guard let data = image.jpegData(compressionQuality: 0.8) else {
             print("Error creating image data")
@@ -47,13 +53,11 @@ class ImageCache {
         if let image = memoryCache.object(forKey: key as NSString) {
             return image
         }
-        
         let fileURL = diskCacheDirectory.appendingPathComponent(key)
         if let data = try? Data(contentsOf: fileURL), let image = UIImage(data: data) {
             memoryCache.setObject(image, forKey: key as NSString)
             return image
         }
-        
         return nil
     }
 }

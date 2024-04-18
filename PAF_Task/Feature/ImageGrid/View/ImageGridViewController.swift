@@ -14,6 +14,8 @@ class ImageGridViewController: UIViewController {
     @IBOutlet weak var viewNoInternet: UIView!
     
     private var imageDetailsArray: ImageDetails = []
+    var limitCount = 100
+    var loadMoreData = true
     
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -38,7 +40,7 @@ extension ImageGridViewController {
                     if self.imageDetailsArray.count > 0 {
                         self.collectionView.reloadData()
                     } else {
-                        self.apiCallToGetImageData(limitCount: 100)
+                        self.apiCallToGetImageData(limitCount: self.limitCount)
                     }
                     // Internet connection available
                 } else {
@@ -50,7 +52,8 @@ extension ImageGridViewController {
     }
 
    
-    func setupViews() {
+    private func setupViews() {
+        applyStyle()
         setCollectionViewLayout()
         if InternetConnectionManager.shared.isConnectedToInternet {
             viewNoInternet.isHidden = true
@@ -58,6 +61,10 @@ extension ImageGridViewController {
         } else {
             viewNoInternet.isHidden = false
         }
+    }
+    
+    private func applyStyle() {
+        viewNoInternet.isHidden = true
     }
     
     func setCollectionViewLayout() {
@@ -69,7 +76,7 @@ extension ImageGridViewController {
         layout.minimumLineSpacing = 5
         layout.minimumInteritemSpacing = 5
         let screenWidth = collectionView.frame.size.width
-        let size = screenWidth / 3 - 5
+        let size = (screenWidth - 15) / 3 
         layout.itemSize =  CGSize(width: size, height: size)
         self.collectionView.collectionViewLayout = layout
         collectionView.delegate = self
@@ -79,13 +86,25 @@ extension ImageGridViewController {
     func apiCallToGetImageData(limitCount: Int) {
         ImageListViewModel().getImageListData(limitCount) { success, results, error in
             if success {
-                self.imageDetailsArray = results ?? []
+                self.loadMoreData = true
+                self.imageDetailsArray =  results ?? []
                 if results?.count ?? 0 > 0 {
                     self.collectionView.reloadData()
+                }
+            } else {
+                self.loadMoreData = false
+                DispatchQueue.main.async {
+                    self.showError(message: error?.description ?? "An error occurred while calling the API")
                 }
             }
         }
     }
+    
+    func showError(message: String) {
+            let alert = UIAlertController(title: "Error", message: message, preferredStyle: .alert)
+            alert.addAction(UIAlertAction(title: "OK", style: .default, handler: nil))
+            present(alert, animated: true, completion: nil)
+        }
     
     func getImageURLStr(imageDetails: ImagesDetailListModel) -> String? {
         let thumbnail = imageDetails.thumbnail
@@ -98,7 +117,13 @@ extension ImageGridViewController {
 }
 
 extension ImageGridViewController: UICollectionViewDelegate {
-    
+    func collectionView(_ collectionView: UICollectionView, willDisplay cell: UICollectionViewCell, forItemAt indexPath: IndexPath) {
+            if indexPath.item == imageDetailsArray.count - 1 && loadMoreData {
+                // Load more data
+                limitCount += 100
+                apiCallToGetImageData(limitCount: limitCount)
+            }
+        }
 }
 
 extension ImageGridViewController: UICollectionViewDataSource {
@@ -108,8 +133,9 @@ extension ImageGridViewController: UICollectionViewDataSource {
     
     func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
         let cell: ImageCollectionViewCell = collectionView.dequeueReusableCell(withReuseIdentifier: CellIdentifier.imageCell, for: indexPath) as! ImageCollectionViewCell
-        let imageDetails = imageDetailsArray[indexPath.row]
+        let imageDetails = imageDetailsArray[indexPath.item]
         let imageURLStr = getImageURLStr(imageDetails: imageDetails)
+        cell.indexForImage = indexPath.item
         cell.imageURL = URL(string: imageURLStr ?? "")
         return cell
     }

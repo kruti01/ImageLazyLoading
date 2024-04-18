@@ -11,10 +11,11 @@ class ImageCollectionViewCell: UICollectionViewCell {
     
     @IBOutlet weak var imageView: UIImageView!
     
+    var indexForImage = 0
     var imageURL: URL? {
         didSet {
             // Reset the image when a new URL is set
-            imageView.image = nil
+            imageView.image = UIImage(named: "defaultimage")
             
             // Load the image asynchronously
             loadImage()
@@ -26,7 +27,7 @@ class ImageCollectionViewCell: UICollectionViewCell {
     private func loadImage() {
         guard let url = imageURL else { return }
         
-        if let cachedImage = ImageCache.shared.image(forKey: url.absoluteString) {
+        if let cachedImage = ImageCache.shared.image(forKey: "index\(indexForImage)image.png") {
             imageView.image = cachedImage
             return
         }
@@ -35,16 +36,22 @@ class ImageCollectionViewCell: UICollectionViewCell {
             guard let self = self else { return }
             
             if let error = error {
-                print("Error loading image: \(error.localizedDescription)")
+                DispatchQueue.main.async {
+                    self.imageView.image = UIImage(named: "defaultimage")
+                }
+                print("Loading image: \(error.localizedDescription)")
                 return
             }
             
             guard let data = data, let image = UIImage(data: data) else {
+                DispatchQueue.main.async {
+                    self.imageView.image = UIImage(named: "defaultimage")
+                }
                 print("Invalid image data")
                 return
             }
             
-            ImageCache.shared.save(image: image, forKey: url.absoluteString)
+            ImageCache.shared.save(image: image, forKey: "index\(self.indexForImage)image.png")
             
             DispatchQueue.main.async {
                 self.imageView.image = image
