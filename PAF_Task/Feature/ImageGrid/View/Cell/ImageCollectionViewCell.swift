@@ -54,7 +54,8 @@ class ImageCollectionViewCell: UICollectionViewCell {
             ImageCache.shared.save(image: image, forKey: "index\(self.indexForImage)image.png")
             
             DispatchQueue.main.async {
-                self.imageView.image = image
+                self.imageView.image = self.centerCropImage(image: image, size: self.contentView.frame.size)
+                //                self.imageView.image = self.cropImage(image, toRect: cropRect, viewWidth: self.contentView.frame.size.width, viewHeight: self.contentView.frame.size.height)
             }
         }
         task?.resume()
@@ -64,5 +65,62 @@ class ImageCollectionViewCell: UICollectionViewCell {
         super.prepareForReuse()
         
         task?.cancel()
+    }
+}
+
+extension ImageCollectionViewCell {
+    
+    func cropImage(_ inputImage: UIImage, toRect cropRect: CGRect, viewWidth: CGFloat, viewHeight: CGFloat) -> UIImage?
+    {
+        let imageViewScale = max(inputImage.size.width / viewWidth,
+                                 inputImage.size.height / viewHeight)
+        
+        let cropZone = CGRect(x:cropRect.origin.x * imageViewScale,
+                              y:cropRect.origin.y * imageViewScale,
+                              width:cropRect.size.width * imageViewScale,
+                              height:cropRect.size.height * imageViewScale)
+        
+        
+        guard let cutImageRef: CGImage = inputImage.cgImage?.cropping(to:cropZone)
+        else {
+            return nil
+        }
+        
+        let croppedImage: UIImage = UIImage(cgImage: cutImageRef)
+        return croppedImage
+    }
+    
+    
+    func centerCropImage(image: UIImage, size: CGSize) -> UIImage? {
+        let cgImage = image.cgImage!
+        
+        let contextImage: UIImage = UIImage(cgImage: cgImage)
+        
+        let contextSize: CGSize = contextImage.size
+        
+        var posX: CGFloat = 0.0
+        var posY: CGFloat = 0.0
+        var width: CGFloat = size.width
+        var height: CGFloat = size.height
+        
+        if contextSize.width > contextSize.height {
+            posX = ((contextSize.width - contextSize.height) / 2)
+            posY = 0
+            width = contextSize.height
+            height = contextSize.height
+        } else {
+            posX = 0
+            posY = ((contextSize.height - contextSize.width) / 2)
+            width = contextSize.width
+            height = contextSize.width
+        }
+        
+        let rect: CGRect = CGRect(x: posX, y: posY, width: width, height: height)
+        
+        let imageRef: CGImage = cgImage.cropping(to: rect)!
+        
+        let croppedImage: UIImage = UIImage(cgImage: imageRef, scale: image.scale, orientation: image.imageOrientation)
+        
+        return croppedImage
     }
 }
